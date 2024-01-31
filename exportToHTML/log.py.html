@@ -1,0 +1,103 @@
+<html>
+<head>
+<title>log.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #7a7e85;}
+.s3 { color: #cf8e6d;}
+.s4 { color: #bcbec4;}
+.s5 { color: #2aacb8;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+log.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;A simple log mechanism styled after PEP 282.&quot;&quot;&quot;</span>
+
+<span class="s2"># The class here is styled after PEP 282 so that it could later be</span>
+<span class="s2"># replaced with a standard Python logging implementation.</span>
+
+<span class="s3">import </span><span class="s1">sys</span>
+
+<span class="s1">DEBUG </span><span class="s4">= </span><span class="s5">1</span>
+<span class="s1">INFO </span><span class="s4">= </span><span class="s5">2</span>
+<span class="s1">WARN </span><span class="s4">= </span><span class="s5">3</span>
+<span class="s1">ERROR </span><span class="s4">= </span><span class="s5">4</span>
+<span class="s1">FATAL </span><span class="s4">= </span><span class="s5">5</span>
+
+
+<span class="s3">class </span><span class="s1">Log</span><span class="s4">:</span>
+    <span class="s3">def </span><span class="s1">__init__</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">threshold</span><span class="s4">=</span><span class="s1">WARN</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">threshold </span><span class="s4">= </span><span class="s1">threshold</span>
+
+    <span class="s3">def </span><span class="s1">_log</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">level</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s3">if </span><span class="s1">level </span><span class="s3">not in </span><span class="s4">(</span><span class="s1">DEBUG</span><span class="s4">, </span><span class="s1">INFO</span><span class="s4">, </span><span class="s1">WARN</span><span class="s4">, </span><span class="s1">ERROR</span><span class="s4">, </span><span class="s1">FATAL</span><span class="s4">):</span>
+            <span class="s3">raise </span><span class="s1">ValueError</span><span class="s4">(</span><span class="s6">'%s wrong log level' </span><span class="s4">% </span><span class="s1">str</span><span class="s4">(</span><span class="s1">level</span><span class="s4">))</span>
+
+        <span class="s3">if </span><span class="s1">level </span><span class="s4">&gt;= </span><span class="s1">self</span><span class="s4">.</span><span class="s1">threshold</span><span class="s4">:</span>
+            <span class="s3">if </span><span class="s1">args</span><span class="s4">:</span>
+                <span class="s1">msg </span><span class="s4">= </span><span class="s1">msg </span><span class="s4">% </span><span class="s1">args</span>
+            <span class="s3">if </span><span class="s1">level </span><span class="s3">in </span><span class="s4">(</span><span class="s1">WARN</span><span class="s4">, </span><span class="s1">ERROR</span><span class="s4">, </span><span class="s1">FATAL</span><span class="s4">):</span>
+                <span class="s1">stream </span><span class="s4">= </span><span class="s1">sys</span><span class="s4">.</span><span class="s1">stderr</span>
+            <span class="s3">else</span><span class="s4">:</span>
+                <span class="s1">stream </span><span class="s4">= </span><span class="s1">sys</span><span class="s4">.</span><span class="s1">stdout</span>
+            <span class="s3">try</span><span class="s4">:</span>
+                <span class="s1">stream</span><span class="s4">.</span><span class="s1">write</span><span class="s4">(</span><span class="s6">'%s</span><span class="s3">\n</span><span class="s6">' </span><span class="s4">% </span><span class="s1">msg</span><span class="s4">)</span>
+            <span class="s3">except </span><span class="s1">UnicodeEncodeError</span><span class="s4">:</span>
+                <span class="s2"># emulate backslashreplace error handler</span>
+                <span class="s1">encoding </span><span class="s4">= </span><span class="s1">stream</span><span class="s4">.</span><span class="s1">encoding</span>
+                <span class="s1">msg </span><span class="s4">= </span><span class="s1">msg</span><span class="s4">.</span><span class="s1">encode</span><span class="s4">(</span><span class="s1">encoding</span><span class="s4">, </span><span class="s6">&quot;backslashreplace&quot;</span><span class="s4">).</span><span class="s1">decode</span><span class="s4">(</span><span class="s1">encoding</span><span class="s4">)</span>
+                <span class="s1">stream</span><span class="s4">.</span><span class="s1">write</span><span class="s4">(</span><span class="s6">'%s</span><span class="s3">\n</span><span class="s6">' </span><span class="s4">% </span><span class="s1">msg</span><span class="s4">)</span>
+            <span class="s1">stream</span><span class="s4">.</span><span class="s1">flush</span><span class="s4">()</span>
+
+    <span class="s3">def </span><span class="s1">log</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">level</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">level</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">debug</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">DEBUG</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">info</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">INFO</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">warn</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">WARN</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">error</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">ERROR</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+    <span class="s3">def </span><span class="s1">fatal</span><span class="s4">(</span><span class="s1">self</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, *</span><span class="s1">args</span><span class="s4">):</span>
+        <span class="s1">self</span><span class="s4">.</span><span class="s1">_log</span><span class="s4">(</span><span class="s1">FATAL</span><span class="s4">, </span><span class="s1">msg</span><span class="s4">, </span><span class="s1">args</span><span class="s4">)</span>
+
+
+<span class="s1">_global_log </span><span class="s4">= </span><span class="s1">Log</span><span class="s4">()</span>
+<span class="s1">log </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">log</span>
+<span class="s1">debug </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">debug</span>
+<span class="s1">info </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">info</span>
+<span class="s1">warn </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">warn</span>
+<span class="s1">error </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">error</span>
+<span class="s1">fatal </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">fatal</span>
+
+
+<span class="s3">def </span><span class="s1">set_threshold</span><span class="s4">(</span><span class="s1">level</span><span class="s4">):</span>
+    <span class="s2"># return the old threshold for use from tests</span>
+    <span class="s1">old </span><span class="s4">= </span><span class="s1">_global_log</span><span class="s4">.</span><span class="s1">threshold</span>
+    <span class="s1">_global_log</span><span class="s4">.</span><span class="s1">threshold </span><span class="s4">= </span><span class="s1">level</span>
+    <span class="s3">return </span><span class="s1">old</span>
+
+
+<span class="s3">def </span><span class="s1">set_verbosity</span><span class="s4">(</span><span class="s1">v</span><span class="s4">):</span>
+    <span class="s3">if </span><span class="s1">v </span><span class="s4">&lt;= </span><span class="s5">0</span><span class="s4">:</span>
+        <span class="s1">set_threshold</span><span class="s4">(</span><span class="s1">WARN</span><span class="s4">)</span>
+    <span class="s3">elif </span><span class="s1">v </span><span class="s4">== </span><span class="s5">1</span><span class="s4">:</span>
+        <span class="s1">set_threshold</span><span class="s4">(</span><span class="s1">INFO</span><span class="s4">)</span>
+    <span class="s3">elif </span><span class="s1">v </span><span class="s4">&gt;= </span><span class="s5">2</span><span class="s4">:</span>
+        <span class="s1">set_threshold</span><span class="s4">(</span><span class="s1">DEBUG</span><span class="s4">)</span>
+</pre>
+</body>
+</html>

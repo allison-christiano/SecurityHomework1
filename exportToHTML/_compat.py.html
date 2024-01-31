@@ -1,0 +1,121 @@
+<html>
+<head>
+<title>_compat.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #2aacb8;}
+.s5 { color: #5f826b; font-style: italic;}
+.s6 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+_compat.py</font>
+</center></td></tr></table>
+<pre><span class="s0"># flake8: noqa</span>
+
+<span class="s2">import </span><span class="s1">abc</span>
+<span class="s2">import </span><span class="s1">sys</span>
+<span class="s2">import </span><span class="s1">pathlib</span>
+<span class="s2">from </span><span class="s1">contextlib </span><span class="s2">import </span><span class="s1">suppress</span>
+
+<span class="s2">if </span><span class="s1">sys</span><span class="s3">.</span><span class="s1">version_info </span><span class="s3">&gt;= (</span><span class="s4">3</span><span class="s3">, </span><span class="s4">10</span><span class="s3">):</span>
+    <span class="s2">from </span><span class="s1">zipfile </span><span class="s2">import </span><span class="s1">Path </span><span class="s2">as </span><span class="s1">ZipPath  </span><span class="s0"># type: ignore</span>
+<span class="s2">else</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s3">..</span><span class="s1">zipp </span><span class="s2">import </span><span class="s1">Path </span><span class="s2">as </span><span class="s1">ZipPath  </span><span class="s0"># type: ignore</span>
+
+
+<span class="s2">try</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s1">typing </span><span class="s2">import </span><span class="s1">runtime_checkable  </span><span class="s0"># type: ignore</span>
+<span class="s2">except </span><span class="s1">ImportError</span><span class="s3">:</span>
+
+    <span class="s2">def </span><span class="s1">runtime_checkable</span><span class="s3">(</span><span class="s1">cls</span><span class="s3">):  </span><span class="s0"># type: ignore</span>
+        <span class="s2">return </span><span class="s1">cls</span>
+
+
+<span class="s2">try</span><span class="s3">:</span>
+    <span class="s2">from </span><span class="s1">typing </span><span class="s2">import </span><span class="s1">Protocol  </span><span class="s0"># type: ignore</span>
+<span class="s2">except </span><span class="s1">ImportError</span><span class="s3">:</span>
+    <span class="s1">Protocol </span><span class="s3">= </span><span class="s1">abc</span><span class="s3">.</span><span class="s1">ABC  </span><span class="s0"># type: ignore</span>
+
+
+<span class="s2">class </span><span class="s1">TraversableResourcesLoader</span><span class="s3">:</span>
+    <span class="s5">&quot;&quot;&quot; 
+    Adapt loaders to provide TraversableResources and other 
+    compatibility. 
+ 
+    Used primarily for Python 3.9 and earlier where the native 
+    loaders do not yet implement TraversableResources. 
+    &quot;&quot;&quot;</span>
+
+    <span class="s2">def </span><span class="s1">__init__</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">spec</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">spec </span><span class="s3">= </span><span class="s1">spec</span>
+
+    <span class="s3">@</span><span class="s1">property</span>
+    <span class="s2">def </span><span class="s1">path</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">.</span><span class="s1">origin</span>
+
+    <span class="s2">def </span><span class="s1">get_resource_reader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">name</span><span class="s3">):</span>
+        <span class="s2">from </span><span class="s3">. </span><span class="s2">import </span><span class="s1">readers</span><span class="s3">, </span><span class="s1">_adapters</span>
+
+        <span class="s2">def </span><span class="s1">_zip_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">):</span>
+            <span class="s2">with </span><span class="s1">suppress</span><span class="s3">(</span><span class="s1">AttributeError</span><span class="s3">):</span>
+                <span class="s2">return </span><span class="s1">readers</span><span class="s3">.</span><span class="s1">ZipReader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">.</span><span class="s1">loader</span><span class="s3">, </span><span class="s1">spec</span><span class="s3">.</span><span class="s1">name</span><span class="s3">)</span>
+
+        <span class="s2">def </span><span class="s1">_namespace_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">):</span>
+            <span class="s2">with </span><span class="s1">suppress</span><span class="s3">(</span><span class="s1">AttributeError</span><span class="s3">, </span><span class="s1">ValueError</span><span class="s3">):</span>
+                <span class="s2">return </span><span class="s1">readers</span><span class="s3">.</span><span class="s1">NamespaceReader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">.</span><span class="s1">submodule_search_locations</span><span class="s3">)</span>
+
+        <span class="s2">def </span><span class="s1">_available_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">):</span>
+            <span class="s2">with </span><span class="s1">suppress</span><span class="s3">(</span><span class="s1">AttributeError</span><span class="s3">):</span>
+                <span class="s2">return </span><span class="s1">spec</span><span class="s3">.</span><span class="s1">loader</span><span class="s3">.</span><span class="s1">get_resource_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">.</span><span class="s1">name</span><span class="s3">)</span>
+
+        <span class="s2">def </span><span class="s1">_native_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">):</span>
+            <span class="s1">reader </span><span class="s3">= </span><span class="s1">_available_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">)</span>
+            <span class="s2">return </span><span class="s1">reader </span><span class="s2">if </span><span class="s1">hasattr</span><span class="s3">(</span><span class="s1">reader</span><span class="s3">, </span><span class="s6">'files'</span><span class="s3">) </span><span class="s2">else None</span>
+
+        <span class="s2">def </span><span class="s1">_file_reader</span><span class="s3">(</span><span class="s1">spec</span><span class="s3">):</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">path </span><span class="s3">= </span><span class="s1">pathlib</span><span class="s3">.</span><span class="s1">Path</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">path</span><span class="s3">)</span>
+            <span class="s2">except </span><span class="s1">TypeError</span><span class="s3">:</span>
+                <span class="s2">return None</span>
+            <span class="s2">if </span><span class="s1">path</span><span class="s3">.</span><span class="s1">exists</span><span class="s3">():</span>
+                <span class="s2">return </span><span class="s1">readers</span><span class="s3">.</span><span class="s1">FileReader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">)</span>
+
+        <span class="s2">return </span><span class="s3">(</span>
+            <span class="s0"># native reader if it supplies 'files'</span>
+            <span class="s1">_native_reader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">)</span>
+            <span class="s2">or</span>
+            <span class="s0"># local ZipReader if a zip module</span>
+            <span class="s1">_zip_reader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">)</span>
+            <span class="s2">or</span>
+            <span class="s0"># local NamespaceReader if a namespace module</span>
+            <span class="s1">_namespace_reader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">)</span>
+            <span class="s2">or</span>
+            <span class="s0"># local FileReader</span>
+            <span class="s1">_file_reader</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">)</span>
+            <span class="s0"># fallback - adapt the spec ResourceReader to TraversableReader</span>
+            <span class="s2">or </span><span class="s1">_adapters</span><span class="s3">.</span><span class="s1">CompatibilityFiles</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">spec</span><span class="s3">)</span>
+        <span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">wrap_spec</span><span class="s3">(</span><span class="s1">package</span><span class="s3">):</span>
+    <span class="s5">&quot;&quot;&quot; 
+    Construct a package spec with traversable compatibility 
+    on the spec/loader/reader. 
+ 
+    Supersedes _adapters.wrap_spec to use TraversableResourcesLoader 
+    from above for older Python compatibility (&lt;3.10). 
+    &quot;&quot;&quot;</span>
+    <span class="s2">from </span><span class="s3">. </span><span class="s2">import </span><span class="s1">_adapters</span>
+
+    <span class="s2">return </span><span class="s1">_adapters</span><span class="s3">.</span><span class="s1">SpecLoaderAdapter</span><span class="s3">(</span><span class="s1">package</span><span class="s3">.</span><span class="s1">__spec__</span><span class="s3">, </span><span class="s1">TraversableResourcesLoader</span><span class="s3">)</span>
+</pre>
+</body>
+</html>

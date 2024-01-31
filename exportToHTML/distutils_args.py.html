@@ -1,0 +1,66 @@
+<html>
+<head>
+<title>distutils_args.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #5f826b; font-style: italic;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+distutils_args.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">getopt </span><span class="s0">import </span><span class="s1">GetoptError</span><span class="s2">, </span><span class="s1">getopt</span>
+<span class="s0">from </span><span class="s1">typing </span><span class="s0">import </span><span class="s1">Dict</span><span class="s2">, </span><span class="s1">List</span>
+
+<span class="s1">_options </span><span class="s2">= [</span>
+    <span class="s3">&quot;exec-prefix=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;home=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-base=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-data=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-headers=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-lib=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-platlib=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-purelib=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;install-scripts=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;prefix=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;root=&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;user&quot;</span><span class="s2">,</span>
+<span class="s2">]</span>
+
+
+<span class="s0">def </span><span class="s1">parse_distutils_args</span><span class="s2">(</span><span class="s1">args</span><span class="s2">: </span><span class="s1">List</span><span class="s2">[</span><span class="s1">str</span><span class="s2">]) </span><span class="s1">-&gt; Dict</span><span class="s2">[</span><span class="s1">str</span><span class="s2">, </span><span class="s1">str</span><span class="s2">]:</span>
+    <span class="s4">&quot;&quot;&quot;Parse provided arguments, returning an object that has the matched arguments. 
+ 
+    Any unknown arguments are ignored. 
+    &quot;&quot;&quot;</span>
+    <span class="s1">result </span><span class="s2">= {}</span>
+    <span class="s0">for </span><span class="s1">arg </span><span class="s0">in </span><span class="s1">args</span><span class="s2">:</span>
+        <span class="s0">try</span><span class="s2">:</span>
+            <span class="s1">parsed_opt</span><span class="s2">, </span><span class="s1">_ </span><span class="s2">= </span><span class="s1">getopt</span><span class="s2">(</span><span class="s1">args</span><span class="s2">=[</span><span class="s1">arg</span><span class="s2">], </span><span class="s1">shortopts</span><span class="s2">=</span><span class="s3">&quot;&quot;</span><span class="s2">, </span><span class="s1">longopts</span><span class="s2">=</span><span class="s1">_options</span><span class="s2">)</span>
+        <span class="s0">except </span><span class="s1">GetoptError</span><span class="s2">:</span>
+            <span class="s5"># We don't care about any other options, which here may be</span>
+            <span class="s5"># considered unrecognized since our option list is not</span>
+            <span class="s5"># exhaustive.</span>
+            <span class="s0">continue</span>
+
+        <span class="s0">if not </span><span class="s1">parsed_opt</span><span class="s2">:</span>
+            <span class="s0">continue</span>
+
+        <span class="s1">option </span><span class="s2">= </span><span class="s1">parsed_opt</span><span class="s2">[</span><span class="s6">0</span><span class="s2">]</span>
+        <span class="s1">name_from_parsed </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[</span><span class="s6">0</span><span class="s2">][</span><span class="s6">2</span><span class="s2">:].</span><span class="s1">replace</span><span class="s2">(</span><span class="s3">&quot;-&quot;</span><span class="s2">, </span><span class="s3">&quot;_&quot;</span><span class="s2">)</span>
+        <span class="s1">value_from_parsed </span><span class="s2">= </span><span class="s1">option</span><span class="s2">[</span><span class="s6">1</span><span class="s2">] </span><span class="s0">or </span><span class="s3">&quot;true&quot;</span>
+        <span class="s1">result</span><span class="s2">[</span><span class="s1">name_from_parsed</span><span class="s2">] = </span><span class="s1">value_from_parsed</span>
+
+    <span class="s0">return </span><span class="s1">result</span>
+</pre>
+</body>
+</html>

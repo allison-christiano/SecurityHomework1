@@ -1,0 +1,49 @@
+<html>
+<head>
+<title>_path.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+_path.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">os</span>
+<span class="s0">from </span><span class="s1">typing </span><span class="s0">import </span><span class="s1">Union</span>
+
+<span class="s1">_Path </span><span class="s2">= </span><span class="s1">Union</span><span class="s2">[</span><span class="s1">str</span><span class="s2">, </span><span class="s1">os</span><span class="s2">.</span><span class="s1">PathLike</span><span class="s2">]</span>
+
+
+<span class="s0">def </span><span class="s1">ensure_directory</span><span class="s2">(</span><span class="s1">path</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot;Ensure that the parent directory of `path` exists&quot;&quot;&quot;</span>
+    <span class="s1">dirname </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">dirname</span><span class="s2">(</span><span class="s1">path</span><span class="s2">)</span>
+    <span class="s1">os</span><span class="s2">.</span><span class="s1">makedirs</span><span class="s2">(</span><span class="s1">dirname</span><span class="s2">, </span><span class="s1">exist_ok</span><span class="s2">=</span><span class="s0">True</span><span class="s2">)</span>
+
+
+<span class="s0">def </span><span class="s1">same_path</span><span class="s2">(</span><span class="s1">p1</span><span class="s2">: </span><span class="s1">_Path</span><span class="s2">, </span><span class="s1">p2</span><span class="s2">: </span><span class="s1">_Path</span><span class="s2">) </span><span class="s1">-&gt; bool</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot;Differs from os.path.samefile because it does not require paths to exist. 
+    Purely string based (no comparison between i-nodes). 
+    &gt;&gt;&gt; same_path(&quot;a/b&quot;, &quot;./a/b&quot;) 
+    True 
+    &gt;&gt;&gt; same_path(&quot;a/b&quot;, &quot;a/./b&quot;) 
+    True 
+    &gt;&gt;&gt; same_path(&quot;a/b&quot;, &quot;././a/b&quot;) 
+    True 
+    &gt;&gt;&gt; same_path(&quot;a/b&quot;, &quot;./a/b/c/..&quot;) 
+    True 
+    &gt;&gt;&gt; same_path(&quot;a/b&quot;, &quot;../a/b/c&quot;) 
+    False 
+    &gt;&gt;&gt; same_path(&quot;a&quot;, &quot;a/b&quot;) 
+    False 
+    &quot;&quot;&quot;</span>
+    <span class="s0">return </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">normpath</span><span class="s2">(</span><span class="s1">p1</span><span class="s2">) == </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">normpath</span><span class="s2">(</span><span class="s1">p2</span><span class="s2">)</span>
+</pre>
+</body>
+</html>

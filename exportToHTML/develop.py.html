@@ -1,0 +1,216 @@
+<html>
+<head>
+<title>develop.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #5f826b; font-style: italic;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+develop.py</font>
+</center></td></tr></table>
+<pre><span class="s0">from </span><span class="s1">distutils</span><span class="s2">.</span><span class="s1">util </span><span class="s0">import </span><span class="s1">convert_path</span>
+<span class="s0">from </span><span class="s1">distutils </span><span class="s0">import </span><span class="s1">log</span>
+<span class="s0">from </span><span class="s1">distutils</span><span class="s2">.</span><span class="s1">errors </span><span class="s0">import </span><span class="s1">DistutilsError</span><span class="s2">, </span><span class="s1">DistutilsOptionError</span>
+<span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">glob</span>
+<span class="s0">import </span><span class="s1">io</span>
+
+<span class="s0">import </span><span class="s1">pkg_resources</span>
+<span class="s0">from </span><span class="s1">setuptools</span><span class="s2">.</span><span class="s1">command</span><span class="s2">.</span><span class="s1">easy_install </span><span class="s0">import </span><span class="s1">easy_install</span>
+<span class="s0">from </span><span class="s1">setuptools </span><span class="s0">import </span><span class="s1">namespaces</span>
+<span class="s0">import </span><span class="s1">setuptools</span>
+
+
+<span class="s0">class </span><span class="s1">develop</span><span class="s2">(</span><span class="s1">namespaces</span><span class="s2">.</span><span class="s1">DevelopInstaller</span><span class="s2">, </span><span class="s1">easy_install</span><span class="s2">):</span>
+    <span class="s3">&quot;&quot;&quot;Set up package for development&quot;&quot;&quot;</span>
+
+    <span class="s1">description </span><span class="s2">= </span><span class="s4">&quot;install package in 'development mode'&quot;</span>
+
+    <span class="s1">user_options </span><span class="s2">= </span><span class="s1">easy_install</span><span class="s2">.</span><span class="s1">user_options </span><span class="s2">+ [</span>
+        <span class="s2">(</span><span class="s4">&quot;uninstall&quot;</span><span class="s2">, </span><span class="s4">&quot;u&quot;</span><span class="s2">, </span><span class="s4">&quot;Uninstall this source package&quot;</span><span class="s2">),</span>
+        <span class="s2">(</span><span class="s4">&quot;egg-path=&quot;</span><span class="s2">, </span><span class="s0">None</span><span class="s2">, </span><span class="s4">&quot;Set the path to be used in the .egg-link file&quot;</span><span class="s2">),</span>
+    <span class="s2">]</span>
+
+    <span class="s1">boolean_options </span><span class="s2">= </span><span class="s1">easy_install</span><span class="s2">.</span><span class="s1">boolean_options </span><span class="s2">+ [</span><span class="s4">'uninstall'</span><span class="s2">]</span>
+
+    <span class="s1">command_consumes_arguments </span><span class="s2">= </span><span class="s0">False  </span><span class="s5"># override base</span>
+
+    <span class="s0">def </span><span class="s1">run</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">uninstall</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">multi_version </span><span class="s2">= </span><span class="s0">True</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">uninstall_link</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">uninstall_namespaces</span><span class="s2">()</span>
+        <span class="s0">else</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">install_for_development</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">warn_deprecated_options</span><span class="s2">()</span>
+
+    <span class="s0">def </span><span class="s1">initialize_options</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">uninstall </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">easy_install</span><span class="s2">.</span><span class="s1">initialize_options</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setup_path </span><span class="s2">= </span><span class="s0">None</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">always_copy_from </span><span class="s2">= </span><span class="s4">'.'  </span><span class="s5"># always copy eggs installed in curdir</span>
+
+    <span class="s0">def </span><span class="s1">finalize_options</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">ei </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">get_finalized_command</span><span class="s2">(</span><span class="s4">&quot;egg_info&quot;</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">ei</span><span class="s2">.</span><span class="s1">broken_egg_info</span><span class="s2">:</span>
+            <span class="s1">template </span><span class="s2">= </span><span class="s4">&quot;Please rename %r to %r before using 'develop'&quot;</span>
+            <span class="s1">args </span><span class="s2">= </span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_info</span><span class="s2">, </span><span class="s1">ei</span><span class="s2">.</span><span class="s1">broken_egg_info</span>
+            <span class="s0">raise </span><span class="s1">DistutilsError</span><span class="s2">(</span><span class="s1">template </span><span class="s2">% </span><span class="s1">args</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">args </span><span class="s2">= [</span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_name</span><span class="s2">]</span>
+
+        <span class="s1">easy_install</span><span class="s2">.</span><span class="s1">finalize_options</span><span class="s2">(</span><span class="s1">self</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">expand_basedirs</span><span class="s2">()</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">expand_dirs</span><span class="s2">()</span>
+        <span class="s5"># pick up setup-dir .egg files only: no .egg-info</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">package_index</span><span class="s2">.</span><span class="s1">scan</span><span class="s2">(</span><span class="s1">glob</span><span class="s2">.</span><span class="s1">glob</span><span class="s2">(</span><span class="s4">'*.egg'</span><span class="s2">))</span>
+
+        <span class="s1">egg_link_fn </span><span class="s2">= </span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_name </span><span class="s2">+ </span><span class="s4">'.egg-link'</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">install_dir</span><span class="s2">, </span><span class="s1">egg_link_fn</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_base </span><span class="s2">= </span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_base</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path </span><span class="s0">is None</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">abspath</span><span class="s2">(</span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_base</span><span class="s2">)</span>
+
+        <span class="s1">target </span><span class="s2">= </span><span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">normalize_path</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_base</span><span class="s2">)</span>
+        <span class="s1">egg_path </span><span class="s2">= </span><span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">normalize_path</span><span class="s2">(</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">install_dir</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path</span><span class="s2">)</span>
+        <span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">egg_path </span><span class="s2">!= </span><span class="s1">target</span><span class="s2">:</span>
+            <span class="s0">raise </span><span class="s1">DistutilsOptionError</span><span class="s2">(</span>
+                <span class="s4">&quot;--egg-path must be a relative path from the install&quot;</span>
+                <span class="s4">&quot; directory to &quot; </span><span class="s2">+ </span><span class="s1">target</span>
+            <span class="s2">)</span>
+
+        <span class="s5"># Make a distribution for the package's source</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">dist </span><span class="s2">= </span><span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">Distribution</span><span class="s2">(</span>
+            <span class="s1">target</span><span class="s2">,</span>
+            <span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">PathMetadata</span><span class="s2">(</span><span class="s1">target</span><span class="s2">, </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">abspath</span><span class="s2">(</span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_info</span><span class="s2">)),</span>
+            <span class="s1">project_name</span><span class="s2">=</span><span class="s1">ei</span><span class="s2">.</span><span class="s1">egg_name</span><span class="s2">,</span>
+        <span class="s2">)</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">setup_path </span><span class="s2">= </span><span class="s1">self</span><span class="s2">.</span><span class="s1">_resolve_setup_path</span><span class="s2">(</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_base</span><span class="s2">,</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">install_dir</span><span class="s2">,</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path</span><span class="s2">,</span>
+        <span class="s2">)</span>
+
+    <span class="s2">@</span><span class="s1">staticmethod</span>
+    <span class="s0">def </span><span class="s1">_resolve_setup_path</span><span class="s2">(</span><span class="s1">egg_base</span><span class="s2">, </span><span class="s1">install_dir</span><span class="s2">, </span><span class="s1">egg_path</span><span class="s2">):</span>
+        <span class="s3">&quot;&quot;&quot; 
+        Generate a path from egg_base back to '.' where the 
+        setup script resides and ensure that path points to the 
+        setup path from $install_dir/$egg_path. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">path_to_setup </span><span class="s2">= </span><span class="s1">egg_base</span><span class="s2">.</span><span class="s1">replace</span><span class="s2">(</span><span class="s1">os</span><span class="s2">.</span><span class="s1">sep</span><span class="s2">, </span><span class="s4">'/'</span><span class="s2">).</span><span class="s1">rstrip</span><span class="s2">(</span><span class="s4">'/'</span><span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">path_to_setup </span><span class="s2">!= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">curdir</span><span class="s2">:</span>
+            <span class="s1">path_to_setup </span><span class="s2">= </span><span class="s4">'../' </span><span class="s2">* (</span><span class="s1">path_to_setup</span><span class="s2">.</span><span class="s1">count</span><span class="s2">(</span><span class="s4">'/'</span><span class="s2">) + </span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">resolved </span><span class="s2">= </span><span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">normalize_path</span><span class="s2">(</span>
+            <span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">install_dir</span><span class="s2">, </span><span class="s1">egg_path</span><span class="s2">, </span><span class="s1">path_to_setup</span><span class="s2">)</span>
+        <span class="s2">)</span>
+        <span class="s0">if </span><span class="s1">resolved </span><span class="s2">!= </span><span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">normalize_path</span><span class="s2">(</span><span class="s1">os</span><span class="s2">.</span><span class="s1">curdir</span><span class="s2">):</span>
+            <span class="s0">raise </span><span class="s1">DistutilsOptionError</span><span class="s2">(</span>
+                <span class="s4">&quot;Can't get a consistent path to setup script from&quot;</span>
+                <span class="s4">&quot; installation directory&quot;</span><span class="s2">,</span>
+                <span class="s1">resolved</span><span class="s2">,</span>
+                <span class="s1">pkg_resources</span><span class="s2">.</span><span class="s1">normalize_path</span><span class="s2">(</span><span class="s1">os</span><span class="s2">.</span><span class="s1">curdir</span><span class="s2">),</span>
+            <span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">path_to_setup</span>
+
+    <span class="s0">def </span><span class="s1">install_for_development</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">run_command</span><span class="s2">(</span><span class="s4">'egg_info'</span><span class="s2">)</span>
+
+        <span class="s5"># Build extensions in-place</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">reinitialize_command</span><span class="s2">(</span><span class="s4">'build_ext'</span><span class="s2">, </span><span class="s1">inplace</span><span class="s2">=</span><span class="s6">1</span><span class="s2">)</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">run_command</span><span class="s2">(</span><span class="s4">'build_ext'</span><span class="s2">)</span>
+
+        <span class="s0">if </span><span class="s1">setuptools</span><span class="s2">.</span><span class="s1">bootstrap_install_from</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">easy_install</span><span class="s2">(</span><span class="s1">setuptools</span><span class="s2">.</span><span class="s1">bootstrap_install_from</span><span class="s2">)</span>
+            <span class="s1">setuptools</span><span class="s2">.</span><span class="s1">bootstrap_install_from </span><span class="s2">= </span><span class="s0">None</span>
+
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">install_namespaces</span><span class="s2">()</span>
+
+        <span class="s5"># create an .egg-link in the installation dir, pointing to our egg</span>
+        <span class="s1">log</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Creating %s (link to %s)&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_base</span><span class="s2">)</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dry_run</span><span class="s2">:</span>
+            <span class="s0">with </span><span class="s1">open</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">, </span><span class="s4">&quot;w&quot;</span><span class="s2">) </span><span class="s0">as </span><span class="s1">f</span><span class="s2">:</span>
+                <span class="s1">f</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path </span><span class="s2">+ </span><span class="s4">&quot;</span><span class="s0">\n</span><span class="s4">&quot; </span><span class="s2">+ </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setup_path</span><span class="s2">)</span>
+        <span class="s5"># postprocess the installed distro, fixing up .pth, installing scripts,</span>
+        <span class="s5"># and handling requirements</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">process_distribution</span><span class="s2">(</span><span class="s0">None</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dist</span><span class="s2">, </span><span class="s0">not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">no_deps</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">uninstall_link</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">exists</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">):</span>
+            <span class="s1">log</span><span class="s2">.</span><span class="s1">info</span><span class="s2">(</span><span class="s4">&quot;Removing %s (link to %s)&quot;</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_base</span><span class="s2">)</span>
+            <span class="s1">egg_link_file </span><span class="s2">= </span><span class="s1">open</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">)</span>
+            <span class="s1">contents </span><span class="s2">= [</span><span class="s1">line</span><span class="s2">.</span><span class="s1">rstrip</span><span class="s2">() </span><span class="s0">for </span><span class="s1">line </span><span class="s0">in </span><span class="s1">egg_link_file</span><span class="s2">]</span>
+            <span class="s1">egg_link_file</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+            <span class="s0">if </span><span class="s1">contents </span><span class="s0">not in </span><span class="s2">([</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path</span><span class="s2">], [</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_path</span><span class="s2">, </span><span class="s1">self</span><span class="s2">.</span><span class="s1">setup_path</span><span class="s2">]):</span>
+                <span class="s1">log</span><span class="s2">.</span><span class="s1">warn</span><span class="s2">(</span><span class="s4">&quot;Link points to %s: uninstall aborted&quot;</span><span class="s2">, </span><span class="s1">contents</span><span class="s2">)</span>
+                <span class="s0">return</span>
+            <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dry_run</span><span class="s2">:</span>
+                <span class="s1">os</span><span class="s2">.</span><span class="s1">unlink</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">egg_link</span><span class="s2">)</span>
+        <span class="s0">if not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dry_run</span><span class="s2">:</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">update_pth</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">dist</span><span class="s2">)  </span><span class="s5"># remove any .pth link to us</span>
+        <span class="s0">if </span><span class="s1">self</span><span class="s2">.</span><span class="s1">distribution</span><span class="s2">.</span><span class="s1">scripts</span><span class="s2">:</span>
+            <span class="s5"># XXX should also check for entry point scripts!</span>
+            <span class="s1">log</span><span class="s2">.</span><span class="s1">warn</span><span class="s2">(</span><span class="s4">&quot;Note: you must uninstall or replace scripts manually!&quot;</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">install_egg_scripts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">):</span>
+        <span class="s0">if </span><span class="s1">dist </span><span class="s0">is not </span><span class="s1">self</span><span class="s2">.</span><span class="s1">dist</span><span class="s2">:</span>
+            <span class="s5"># Installing a dependency, so fall back to normal behavior</span>
+            <span class="s0">return </span><span class="s1">easy_install</span><span class="s2">.</span><span class="s1">install_egg_scripts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">)</span>
+
+        <span class="s5"># create wrapper scripts in the script dir, pointing to dist.scripts</span>
+
+        <span class="s5"># new-style...</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">install_wrapper_scripts</span><span class="s2">(</span><span class="s1">dist</span><span class="s2">)</span>
+
+        <span class="s5"># ...and old-style</span>
+        <span class="s0">for </span><span class="s1">script_name </span><span class="s0">in </span><span class="s1">self</span><span class="s2">.</span><span class="s1">distribution</span><span class="s2">.</span><span class="s1">scripts </span><span class="s0">or </span><span class="s2">[]:</span>
+            <span class="s1">script_path </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">abspath</span><span class="s2">(</span><span class="s1">convert_path</span><span class="s2">(</span><span class="s1">script_name</span><span class="s2">))</span>
+            <span class="s1">script_name </span><span class="s2">= </span><span class="s1">os</span><span class="s2">.</span><span class="s1">path</span><span class="s2">.</span><span class="s1">basename</span><span class="s2">(</span><span class="s1">script_path</span><span class="s2">)</span>
+            <span class="s0">with </span><span class="s1">io</span><span class="s2">.</span><span class="s1">open</span><span class="s2">(</span><span class="s1">script_path</span><span class="s2">) </span><span class="s0">as </span><span class="s1">strm</span><span class="s2">:</span>
+                <span class="s1">script_text </span><span class="s2">= </span><span class="s1">strm</span><span class="s2">.</span><span class="s1">read</span><span class="s2">()</span>
+            <span class="s1">self</span><span class="s2">.</span><span class="s1">install_script</span><span class="s2">(</span><span class="s1">dist</span><span class="s2">, </span><span class="s1">script_name</span><span class="s2">, </span><span class="s1">script_text</span><span class="s2">, </span><span class="s1">script_path</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">install_wrapper_scripts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">):</span>
+        <span class="s1">dist </span><span class="s2">= </span><span class="s1">VersionlessRequirement</span><span class="s2">(</span><span class="s1">dist</span><span class="s2">)</span>
+        <span class="s0">return </span><span class="s1">easy_install</span><span class="s2">.</span><span class="s1">install_wrapper_scripts</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">)</span>
+
+
+<span class="s0">class </span><span class="s1">VersionlessRequirement</span><span class="s2">:</span>
+    <span class="s3">&quot;&quot;&quot; 
+    Adapt a pkg_resources.Distribution to simply return the project 
+    name as the 'requirement' so that scripts will work across 
+    multiple versions. 
+ 
+    &gt;&gt;&gt; from pkg_resources import Distribution 
+    &gt;&gt;&gt; dist = Distribution(project_name='foo', version='1.0') 
+    &gt;&gt;&gt; str(dist.as_requirement()) 
+    'foo==1.0' 
+    &gt;&gt;&gt; adapted_dist = VersionlessRequirement(dist) 
+    &gt;&gt;&gt; str(adapted_dist.as_requirement()) 
+    'foo' 
+    &quot;&quot;&quot;</span>
+
+    <span class="s0">def </span><span class="s1">__init__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">dist</span><span class="s2">):</span>
+        <span class="s1">self</span><span class="s2">.</span><span class="s1">__dist </span><span class="s2">= </span><span class="s1">dist</span>
+
+    <span class="s0">def </span><span class="s1">__getattr__</span><span class="s2">(</span><span class="s1">self</span><span class="s2">, </span><span class="s1">name</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">getattr</span><span class="s2">(</span><span class="s1">self</span><span class="s2">.</span><span class="s1">__dist</span><span class="s2">, </span><span class="s1">name</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">as_requirement</span><span class="s2">(</span><span class="s1">self</span><span class="s2">):</span>
+        <span class="s0">return </span><span class="s1">self</span><span class="s2">.</span><span class="s1">project_name</span>
+</pre>
+</body>
+</html>

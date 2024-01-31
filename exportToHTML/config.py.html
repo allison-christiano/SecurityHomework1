@@ -1,0 +1,400 @@
+<html>
+<head>
+<title>config.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #5f826b; font-style: italic;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #7a7e85;}
+.s6 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+config.py</font>
+</center></td></tr></table>
+<pre><span class="s0">&quot;&quot;&quot;distutils.command.config 
+ 
+Implements the Distutils 'config' command, a (mostly) empty command class 
+that exists mainly to be sub-classed by specific module distributions and 
+applications.  The idea is that while every &quot;config&quot; command is different, 
+at least they're all named the same, and users always see &quot;config&quot; in the 
+list of standard commands.  Also, this is a good place to put common 
+configure-like tasks: &quot;try to compile this C code&quot;, or &quot;figure out where 
+this header file lives&quot;. 
+&quot;&quot;&quot;</span>
+
+<span class="s2">import </span><span class="s1">os</span>
+<span class="s2">import </span><span class="s1">re</span>
+
+<span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">core </span><span class="s2">import </span><span class="s1">Command</span>
+<span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">errors </span><span class="s2">import </span><span class="s1">DistutilsExecError</span>
+<span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">sysconfig </span><span class="s2">import </span><span class="s1">customize_compiler</span>
+<span class="s2">from </span><span class="s1">distutils </span><span class="s2">import </span><span class="s1">log</span>
+
+<span class="s1">LANG_EXT </span><span class="s3">= {</span><span class="s4">&quot;c&quot;</span><span class="s3">: </span><span class="s4">&quot;.c&quot;</span><span class="s3">, </span><span class="s4">&quot;c++&quot;</span><span class="s3">: </span><span class="s4">&quot;.cxx&quot;</span><span class="s3">}</span>
+
+
+<span class="s2">class </span><span class="s1">config</span><span class="s3">(</span><span class="s1">Command</span><span class="s3">):</span>
+
+    <span class="s1">description </span><span class="s3">= </span><span class="s4">&quot;prepare to build&quot;</span>
+
+    <span class="s1">user_options </span><span class="s3">= [</span>
+        <span class="s3">(</span><span class="s4">'compiler='</span><span class="s3">, </span><span class="s2">None</span><span class="s3">, </span><span class="s4">&quot;specify the compiler type&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'cc='</span><span class="s3">, </span><span class="s2">None</span><span class="s3">, </span><span class="s4">&quot;specify the compiler executable&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'include-dirs='</span><span class="s3">, </span><span class="s4">'I'</span><span class="s3">, </span><span class="s4">&quot;list of directories to search for header files&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'define='</span><span class="s3">, </span><span class="s4">'D'</span><span class="s3">, </span><span class="s4">&quot;C preprocessor macros to define&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'undef='</span><span class="s3">, </span><span class="s4">'U'</span><span class="s3">, </span><span class="s4">&quot;C preprocessor macros to undefine&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'libraries='</span><span class="s3">, </span><span class="s4">'l'</span><span class="s3">, </span><span class="s4">&quot;external C libraries to link with&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'library-dirs='</span><span class="s3">, </span><span class="s4">'L'</span><span class="s3">, </span><span class="s4">&quot;directories to search for external C libraries&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span><span class="s4">'noisy'</span><span class="s3">, </span><span class="s2">None</span><span class="s3">, </span><span class="s4">&quot;show every action (compile, link, run, ...) taken&quot;</span><span class="s3">),</span>
+        <span class="s3">(</span>
+            <span class="s4">'dump-source'</span><span class="s3">,</span>
+            <span class="s2">None</span><span class="s3">,</span>
+            <span class="s4">&quot;dump generated source files before attempting to compile them&quot;</span><span class="s3">,</span>
+        <span class="s3">),</span>
+    <span class="s3">]</span>
+
+    <span class="s5"># The three standard command methods: since the &quot;config&quot; command</span>
+    <span class="s5"># does nothing by default, these are empty.</span>
+
+    <span class="s2">def </span><span class="s1">initialize_options</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">cc </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">libraries </span><span class="s3">= </span><span class="s2">None</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs </span><span class="s3">= </span><span class="s2">None</span>
+
+        <span class="s5"># maximal output for now</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">noisy </span><span class="s3">= </span><span class="s6">1</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">dump_source </span><span class="s3">= </span><span class="s6">1</span>
+
+        <span class="s5"># list of temporary files generated along-the-way that we have</span>
+        <span class="s5"># to clean at some point</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files </span><span class="s3">= []</span>
+
+    <span class="s2">def </span><span class="s1">finalize_options</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">distribution</span><span class="s3">.</span><span class="s1">include_dirs </span><span class="s2">or </span><span class="s3">[]</span>
+        <span class="s2">elif </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">str</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">pathsep</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">libraries </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">libraries </span><span class="s3">= []</span>
+        <span class="s2">elif </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">libraries</span><span class="s3">, </span><span class="s1">str</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">libraries </span><span class="s3">= [</span><span class="s1">self</span><span class="s3">.</span><span class="s1">libraries</span><span class="s3">]</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs </span><span class="s2">is None</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs </span><span class="s3">= []</span>
+        <span class="s2">elif </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs</span><span class="s3">, </span><span class="s1">str</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs</span><span class="s3">.</span><span class="s1">split</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">pathsep</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">run</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s2">pass</span>
+
+    <span class="s5"># Utility methods for actual &quot;config&quot; commands.  The interfaces are</span>
+    <span class="s5"># loosely based on Autoconf macros of similar names.  Sub-classes</span>
+    <span class="s5"># may use these freely.</span>
+
+    <span class="s2">def </span><span class="s1">_check_compiler</span><span class="s3">(</span><span class="s1">self</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Check that 'self.compiler' really is a CCompiler object; 
+        if not, make it one. 
+        &quot;&quot;&quot;</span>
+        <span class="s5"># We do this late, and only on-demand, because this is an expensive</span>
+        <span class="s5"># import.</span>
+        <span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">ccompiler </span><span class="s2">import </span><span class="s1">CCompiler</span><span class="s3">, </span><span class="s1">new_compiler</span>
+
+        <span class="s2">if not </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">, </span><span class="s1">CCompiler</span><span class="s3">):</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler </span><span class="s3">= </span><span class="s1">new_compiler</span><span class="s3">(</span>
+                <span class="s1">compiler</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">, </span><span class="s1">dry_run</span><span class="s3">=</span><span class="s1">self</span><span class="s3">.</span><span class="s1">dry_run</span><span class="s3">, </span><span class="s1">force</span><span class="s3">=</span><span class="s6">1</span>
+            <span class="s3">)</span>
+            <span class="s1">customize_compiler</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">set_include_dirs</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">include_dirs</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">libraries</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">set_libraries</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">libraries</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs</span><span class="s3">:</span>
+                <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">set_library_dirs</span><span class="s3">(</span><span class="s1">self</span><span class="s3">.</span><span class="s1">library_dirs</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_gen_temp_sourcefile</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">):</span>
+        <span class="s1">filename </span><span class="s3">= </span><span class="s4">&quot;_configtest&quot; </span><span class="s3">+ </span><span class="s1">LANG_EXT</span><span class="s3">[</span><span class="s1">lang</span><span class="s3">]</span>
+        <span class="s2">with </span><span class="s1">open</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">, </span><span class="s4">&quot;w&quot;</span><span class="s3">) </span><span class="s2">as </span><span class="s1">file</span><span class="s3">:</span>
+            <span class="s2">if </span><span class="s1">headers</span><span class="s3">:</span>
+                <span class="s2">for </span><span class="s1">header </span><span class="s2">in </span><span class="s1">headers</span><span class="s3">:</span>
+                    <span class="s1">file</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;#include &lt;%s&gt;</span><span class="s2">\n</span><span class="s4">&quot; </span><span class="s3">% </span><span class="s1">header</span><span class="s3">)</span>
+                <span class="s1">file</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">&quot;</span><span class="s3">)</span>
+            <span class="s1">file</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s1">body</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">body</span><span class="s3">[-</span><span class="s6">1</span><span class="s3">] != </span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">&quot;</span><span class="s3">:</span>
+                <span class="s1">file</span><span class="s3">.</span><span class="s1">write</span><span class="s3">(</span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">&quot;</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s1">filename</span>
+
+    <span class="s2">def </span><span class="s1">_preprocess</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">):</span>
+        <span class="s1">src </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_gen_temp_sourcefile</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+        <span class="s1">out </span><span class="s3">= </span><span class="s4">&quot;_configtest.i&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files</span><span class="s3">.</span><span class="s1">extend</span><span class="s3">([</span><span class="s1">src</span><span class="s3">, </span><span class="s1">out</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">preprocess</span><span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s1">out</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s1">include_dirs</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s1">out</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_compile</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">):</span>
+        <span class="s1">src </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_gen_temp_sourcefile</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">dump_source</span><span class="s3">:</span>
+            <span class="s1">dump_file</span><span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s4">&quot;compiling '%s':&quot; </span><span class="s3">% </span><span class="s1">src</span><span class="s3">)</span>
+        <span class="s3">(</span><span class="s1">obj</span><span class="s3">,) = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">object_filenames</span><span class="s3">([</span><span class="s1">src</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files</span><span class="s3">.</span><span class="s1">extend</span><span class="s3">([</span><span class="s1">src</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">])</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">compile</span><span class="s3">([</span><span class="s1">src</span><span class="s3">], </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s1">include_dirs</span><span class="s3">)</span>
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_link</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">libraries</span><span class="s3">, </span><span class="s1">library_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">):</span>
+        <span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">) = </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_compile</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+        <span class="s1">prog </span><span class="s3">= </span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">splitext</span><span class="s3">(</span><span class="s1">os</span><span class="s3">.</span><span class="s1">path</span><span class="s3">.</span><span class="s1">basename</span><span class="s3">(</span><span class="s1">src</span><span class="s3">))[</span><span class="s6">0</span><span class="s3">]</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">link_executable</span><span class="s3">(</span>
+            <span class="s3">[</span><span class="s1">obj</span><span class="s3">],</span>
+            <span class="s1">prog</span><span class="s3">,</span>
+            <span class="s1">libraries</span><span class="s3">=</span><span class="s1">libraries</span><span class="s3">,</span>
+            <span class="s1">library_dirs</span><span class="s3">=</span><span class="s1">library_dirs</span><span class="s3">,</span>
+            <span class="s1">target_lang</span><span class="s3">=</span><span class="s1">lang</span><span class="s3">,</span>
+        <span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">exe_extension </span><span class="s2">is not None</span><span class="s3">:</span>
+            <span class="s1">prog </span><span class="s3">= </span><span class="s1">prog </span><span class="s3">+ </span><span class="s1">self</span><span class="s3">.</span><span class="s1">compiler</span><span class="s3">.</span><span class="s1">exe_extension</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s1">prog</span><span class="s3">)</span>
+
+        <span class="s2">return </span><span class="s3">(</span><span class="s1">src</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">, </span><span class="s1">prog</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">_clean</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, *</span><span class="s1">filenames</span><span class="s3">):</span>
+        <span class="s2">if not </span><span class="s1">filenames</span><span class="s3">:</span>
+            <span class="s1">filenames </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">temp_files </span><span class="s3">= []</span>
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s4">&quot;removing: %s&quot;</span><span class="s3">, </span><span class="s4">' '</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">filenames</span><span class="s3">))</span>
+        <span class="s2">for </span><span class="s1">filename </span><span class="s2">in </span><span class="s1">filenames</span><span class="s3">:</span>
+            <span class="s2">try</span><span class="s3">:</span>
+                <span class="s1">os</span><span class="s3">.</span><span class="s1">remove</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">)</span>
+            <span class="s2">except </span><span class="s1">OSError</span><span class="s3">:</span>
+                <span class="s2">pass</span>
+
+    <span class="s5"># XXX these ignore the dry-run flag: what to do, what to do? even if</span>
+    <span class="s5"># you want a dry-run build, you still need some sort of configuration</span>
+    <span class="s5"># info.  My inclination is to make it up to the real config command to</span>
+    <span class="s5"># consult 'dry_run', and assume a default (minimal) configuration if</span>
+    <span class="s5"># true.  The problem with trying to do it here is that you'd have to</span>
+    <span class="s5"># return either true or false from all the 'try' methods, neither of</span>
+    <span class="s5"># which is correct.</span>
+
+    <span class="s5"># XXX need access to the header search path and maybe default macros.</span>
+
+    <span class="s2">def </span><span class="s1">try_cpp</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Construct a source file from 'body' (a string containing lines 
+        of C/C++ code) and 'headers' (a list of header files to include) 
+        and run it through the preprocessor.  Return true if the 
+        preprocessor succeeded, false if there were any errors. 
+        ('body' probably isn't of much use, but what the heck.) 
+        &quot;&quot;&quot;</span>
+        <span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">ccompiler </span><span class="s2">import </span><span class="s1">CompileError</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s1">ok </span><span class="s3">= </span><span class="s2">True</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_preprocess</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+        <span class="s2">except </span><span class="s1">CompileError</span><span class="s3">:</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_clean</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">ok</span>
+
+    <span class="s2">def </span><span class="s1">search_cpp</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">pattern</span><span class="s3">, </span><span class="s1">body</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Construct a source file (just like 'try_cpp()'), run it through 
+        the preprocessor, and return true if any line of the output matches 
+        'pattern'.  'pattern' should either be a compiled regex object or a 
+        string containing a regex.  If both 'body' and 'headers' are None, 
+        preprocesses an empty file -- which can be useful to determine the 
+        symbols the preprocessor and compiler set by default. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s1">src</span><span class="s3">, </span><span class="s1">out </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_preprocess</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+
+        <span class="s2">if </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">pattern</span><span class="s3">, </span><span class="s1">str</span><span class="s3">):</span>
+            <span class="s1">pattern </span><span class="s3">= </span><span class="s1">re</span><span class="s3">.</span><span class="s1">compile</span><span class="s3">(</span><span class="s1">pattern</span><span class="s3">)</span>
+
+        <span class="s2">with </span><span class="s1">open</span><span class="s3">(</span><span class="s1">out</span><span class="s3">) </span><span class="s2">as </span><span class="s1">file</span><span class="s3">:</span>
+            <span class="s1">match </span><span class="s3">= </span><span class="s2">False</span>
+            <span class="s2">while True</span><span class="s3">:</span>
+                <span class="s1">line </span><span class="s3">= </span><span class="s1">file</span><span class="s3">.</span><span class="s1">readline</span><span class="s3">()</span>
+                <span class="s2">if </span><span class="s1">line </span><span class="s3">== </span><span class="s4">''</span><span class="s3">:</span>
+                    <span class="s2">break</span>
+                <span class="s2">if </span><span class="s1">pattern</span><span class="s3">.</span><span class="s1">search</span><span class="s3">(</span><span class="s1">line</span><span class="s3">):</span>
+                    <span class="s1">match </span><span class="s3">= </span><span class="s2">True</span>
+                    <span class="s2">break</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_clean</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">match</span>
+
+    <span class="s2">def </span><span class="s1">try_compile</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Try to compile a source file built from 'body' and 'headers'. 
+        Return true on success, false otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">ccompiler </span><span class="s2">import </span><span class="s1">CompileError</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_compile</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">True</span>
+        <span class="s2">except </span><span class="s1">CompileError</span><span class="s3">:</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s1">ok </span><span class="s2">and </span><span class="s4">&quot;success!&quot; </span><span class="s2">or </span><span class="s4">&quot;failure.&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_clean</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">ok</span>
+
+    <span class="s2">def </span><span class="s1">try_link</span><span class="s3">(</span>
+        <span class="s1">self</span><span class="s3">,</span>
+        <span class="s1">body</span><span class="s3">,</span>
+        <span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">libraries</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">library_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">,</span>
+    <span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Try to compile and link a source file, built from 'body' and 
+        'headers', to executable form.  Return true on success, false 
+        otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">ccompiler </span><span class="s2">import </span><span class="s1">CompileError</span><span class="s3">, </span><span class="s1">LinkError</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">_link</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">libraries</span><span class="s3">, </span><span class="s1">library_dirs</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">)</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">True</span>
+        <span class="s2">except </span><span class="s3">(</span><span class="s1">CompileError</span><span class="s3">, </span><span class="s1">LinkError</span><span class="s3">):</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s1">ok </span><span class="s2">and </span><span class="s4">&quot;success!&quot; </span><span class="s2">or </span><span class="s4">&quot;failure.&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_clean</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">ok</span>
+
+    <span class="s2">def </span><span class="s1">try_run</span><span class="s3">(</span>
+        <span class="s1">self</span><span class="s3">,</span>
+        <span class="s1">body</span><span class="s3">,</span>
+        <span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">libraries</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">library_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">,</span>
+    <span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Try to compile, link to an executable, and run a program 
+        built from 'body' and 'headers'.  Return true on success, false 
+        otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">from </span><span class="s1">distutils</span><span class="s3">.</span><span class="s1">ccompiler </span><span class="s2">import </span><span class="s1">CompileError</span><span class="s3">, </span><span class="s1">LinkError</span>
+
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s2">try</span><span class="s3">:</span>
+            <span class="s1">src</span><span class="s3">, </span><span class="s1">obj</span><span class="s3">, </span><span class="s1">exe </span><span class="s3">= </span><span class="s1">self</span><span class="s3">.</span><span class="s1">_link</span><span class="s3">(</span>
+                <span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">libraries</span><span class="s3">, </span><span class="s1">library_dirs</span><span class="s3">, </span><span class="s1">lang</span>
+            <span class="s3">)</span>
+            <span class="s1">self</span><span class="s3">.</span><span class="s1">spawn</span><span class="s3">([</span><span class="s1">exe</span><span class="s3">])</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">True</span>
+        <span class="s2">except </span><span class="s3">(</span><span class="s1">CompileError</span><span class="s3">, </span><span class="s1">LinkError</span><span class="s3">, </span><span class="s1">DistutilsExecError</span><span class="s3">):</span>
+            <span class="s1">ok </span><span class="s3">= </span><span class="s2">False</span>
+
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s1">ok </span><span class="s2">and </span><span class="s4">&quot;success!&quot; </span><span class="s2">or </span><span class="s4">&quot;failure.&quot;</span><span class="s3">)</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_clean</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">ok</span>
+
+    <span class="s5"># -- High-level methods --------------------------------------------</span>
+    <span class="s5"># (these are the ones that are actually likely to be useful</span>
+    <span class="s5"># when implementing a real-world config command!)</span>
+
+    <span class="s2">def </span><span class="s1">check_func</span><span class="s3">(</span>
+        <span class="s1">self</span><span class="s3">,</span>
+        <span class="s1">func</span><span class="s3">,</span>
+        <span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">libraries</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">library_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">decl</span><span class="s3">=</span><span class="s6">0</span><span class="s3">,</span>
+        <span class="s1">call</span><span class="s3">=</span><span class="s6">0</span><span class="s3">,</span>
+    <span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Determine if function 'func' is available by constructing a 
+        source file that refers to 'func', and compiles and links it. 
+        If everything succeeds, returns true; otherwise returns false. 
+ 
+        The constructed source file starts out by including the header 
+        files listed in 'headers'.  If 'decl' is true, it then declares 
+        'func' (as &quot;int func()&quot;); you probably shouldn't supply 'headers' 
+        and set 'decl' true in the same call, or you might get errors about 
+        a conflicting declarations for 'func'.  Finally, the constructed 
+        'main()' function either references 'func' or (if 'call' is true) 
+        calls it.  'libraries' and 'library_dirs' are used when 
+        linking. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s1">body </span><span class="s3">= []</span>
+        <span class="s2">if </span><span class="s1">decl</span><span class="s3">:</span>
+            <span class="s1">body</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s4">&quot;int %s ();&quot; </span><span class="s3">% </span><span class="s1">func</span><span class="s3">)</span>
+        <span class="s1">body</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s4">&quot;int main () {&quot;</span><span class="s3">)</span>
+        <span class="s2">if </span><span class="s1">call</span><span class="s3">:</span>
+            <span class="s1">body</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s4">&quot;  %s();&quot; </span><span class="s3">% </span><span class="s1">func</span><span class="s3">)</span>
+        <span class="s2">else</span><span class="s3">:</span>
+            <span class="s1">body</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s4">&quot;  %s;&quot; </span><span class="s3">% </span><span class="s1">func</span><span class="s3">)</span>
+        <span class="s1">body</span><span class="s3">.</span><span class="s1">append</span><span class="s3">(</span><span class="s4">&quot;}&quot;</span><span class="s3">)</span>
+        <span class="s1">body </span><span class="s3">= </span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">&quot;</span><span class="s3">.</span><span class="s1">join</span><span class="s3">(</span><span class="s1">body</span><span class="s3">) + </span><span class="s4">&quot;</span><span class="s2">\n</span><span class="s4">&quot;</span>
+
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">try_link</span><span class="s3">(</span><span class="s1">body</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">, </span><span class="s1">libraries</span><span class="s3">, </span><span class="s1">library_dirs</span><span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">check_lib</span><span class="s3">(</span>
+        <span class="s1">self</span><span class="s3">,</span>
+        <span class="s1">library</span><span class="s3">,</span>
+        <span class="s1">library_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">headers</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">,</span>
+        <span class="s1">other_libraries</span><span class="s3">=[],</span>
+    <span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Determine if 'library' is available to be linked against, 
+        without actually checking that any particular symbols are provided 
+        by it.  'headers' will be used in constructing the source file to 
+        be compiled, but the only effect of this is to check if all the 
+        header files listed are available.  Any libraries listed in 
+        'other_libraries' will be included in the link, in case 'library' 
+        has symbols that depend on other libraries. 
+        &quot;&quot;&quot;</span>
+        <span class="s1">self</span><span class="s3">.</span><span class="s1">_check_compiler</span><span class="s3">()</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">try_link</span><span class="s3">(</span>
+            <span class="s4">&quot;int main (void) { }&quot;</span><span class="s3">,</span>
+            <span class="s1">headers</span><span class="s3">,</span>
+            <span class="s1">include_dirs</span><span class="s3">,</span>
+            <span class="s3">[</span><span class="s1">library</span><span class="s3">] + </span><span class="s1">other_libraries</span><span class="s3">,</span>
+            <span class="s1">library_dirs</span><span class="s3">,</span>
+        <span class="s3">)</span>
+
+    <span class="s2">def </span><span class="s1">check_header</span><span class="s3">(</span><span class="s1">self</span><span class="s3">, </span><span class="s1">header</span><span class="s3">, </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">library_dirs</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">lang</span><span class="s3">=</span><span class="s4">&quot;c&quot;</span><span class="s3">):</span>
+        <span class="s0">&quot;&quot;&quot;Determine if the system header file named by 'header_file' 
+        exists and can be found by the preprocessor; return true if so, 
+        false otherwise. 
+        &quot;&quot;&quot;</span>
+        <span class="s2">return </span><span class="s1">self</span><span class="s3">.</span><span class="s1">try_cpp</span><span class="s3">(</span>
+            <span class="s1">body</span><span class="s3">=</span><span class="s4">&quot;/* No body */&quot;</span><span class="s3">, </span><span class="s1">headers</span><span class="s3">=[</span><span class="s1">header</span><span class="s3">], </span><span class="s1">include_dirs</span><span class="s3">=</span><span class="s1">include_dirs</span>
+        <span class="s3">)</span>
+
+
+<span class="s2">def </span><span class="s1">dump_file</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">, </span><span class="s1">head</span><span class="s3">=</span><span class="s2">None</span><span class="s3">):</span>
+    <span class="s0">&quot;&quot;&quot;Dumps a file content into log.info. 
+ 
+    If head is not None, will be dumped before the file content. 
+    &quot;&quot;&quot;</span>
+    <span class="s2">if </span><span class="s1">head </span><span class="s2">is None</span><span class="s3">:</span>
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s4">'%s'</span><span class="s3">, </span><span class="s1">filename</span><span class="s3">)</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s1">head</span><span class="s3">)</span>
+    <span class="s1">file </span><span class="s3">= </span><span class="s1">open</span><span class="s3">(</span><span class="s1">filename</span><span class="s3">)</span>
+    <span class="s2">try</span><span class="s3">:</span>
+        <span class="s1">log</span><span class="s3">.</span><span class="s1">info</span><span class="s3">(</span><span class="s1">file</span><span class="s3">.</span><span class="s1">read</span><span class="s3">())</span>
+    <span class="s2">finally</span><span class="s3">:</span>
+        <span class="s1">file</span><span class="s3">.</span><span class="s1">close</span><span class="s3">()</span>
+</pre>
+</body>
+</html>
