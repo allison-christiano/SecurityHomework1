@@ -5,7 +5,7 @@ def shift_message(encrypted_message, shift):
         # if the character is alphabetic, apply the shift and find the new probable plaintext value
         # if not, add it to the plaintext
         if character.isalpha():
-            character = (ord(character) - shift - ord('A')) % 26 + ord('A')
+            character = (ord(character) - shift - 65) % 26 + 65
             character = chr(character)
         plaintext += character
     return plaintext
