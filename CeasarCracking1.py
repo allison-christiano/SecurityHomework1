@@ -11,6 +11,7 @@ def shift_message(encrypted_message, shift):
         plaintext += character
     return plaintext
 
+
 def frequency_analysis(string):
     symbols = '''ABCDEFGHIJKLMNOPQRSTUVWXYZ '''
     # makes the symbols dictionary

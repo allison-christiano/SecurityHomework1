@@ -11,6 +11,7 @@ def shift_message(encrypted_message, shift):
         plaintext += character
     return plaintext
 
+
 def frequency_analysis(string):
     symbols = '''ABCDEFGHIJKLMNOPQRSTUVWXYZ '''
     # makes the symbols dictionary
@@ -36,7 +37,7 @@ def cross_correlation(dict1, dict2):
     return cross_correlation_val
 
 
-def get_caesar_shift(enc_message, expected_dist):
+def get_caesar_shift(encrypted_message1, expected_dist):
     # sets the probable shift and correlation to -1 and will be overwritten
     # if the function behaves as desired
     probable_shift = -1
@@ -46,7 +47,7 @@ def get_caesar_shift(enc_message, expected_dist):
     # computes a cross correlation between this frequency analysis and English
     # finds the highest correlation, and suggests the shift value accordingly
     for i in range(0, 26):
-        possible_plaintext = shift_message(enc_message, i)
+        possible_plaintext = shift_message(encrypted_message1, i)
         possible_plaintext_freq = frequency_analysis(possible_plaintext)
         correlation = cross_correlation(possible_plaintext_freq, expected_dist)
         if correlation > probable_correlation:
@@ -55,8 +56,27 @@ def get_caesar_shift(enc_message, expected_dist):
     return probable_shift
 
 
+def get_vigenere_keyword(enc_message, size, expected_dist):
+    # provides calculations for the columnar transposition like process
+    num = len(enc_message) // size
+    encrypted_messages = [''] * size
+    # partitions the message according to how it should be to enter the get_caesar_shift function
+    for col in range(size):
+        for row in range(num):
+            i = col + row * size
+            encrypted_messages[col] += enc_message[i]
+    # use the get_caesar_shift function on the messages to find the shift and convert the shift into a letter
+    vig_keyword = ""
+    for i in encrypted_messages:
+        shift = get_caesar_shift(i, expected_dist)
+        character = chr(shift + 65)
+        vig_keyword += character
+    return vig_keyword
+
+
 if __name__ == '__main__':
-    message = "CQN ARPQCB XO NENAH VJW JAN MRVRWRBQNM FQNW CQN ARPQCB XO XWN VJW JAN CQANJCNWNM"
+    message = ("TEZHRAIRGMQHNJSQPTLNZJNEVMQHRXAVASLIWDNFOELOPFWGZUHSTIRGLUMCSW GTTQCSJULNLQK OHL MHCMPWLCEHTFNUHNPHTSFFADJHTLNBYORWEFRYE PIISO K ZQR GMPTLQCSPRMOCMKESMTYLUTFRMIEOWXXFMWECCLWSQGWUASSWFGTTMYSGU L QNQGEFGTTIDSWMOAGMKEOQL U KOVN AMZHZRGACMKZRHSQLKLBMJAXTKLVRGFCBTLNAM SMYAHEGIEHTKNFOELNBMWFGORHWTPAY MVOSGUVUSPD")
+    keyword_size = 4
     freq_dist = {' ': .1828846265, 'E': .1026665037, 'T': .0751699827, 'A': .0653216702, 'O': .0615957725,
                  'N': .0571201113, 'I': .0566844326, 'S': .0531700534, 'R': .0498790855, 'H': .0497856396,
                  'L': .0331754796, 'D': .0328292310, 'U': .0227579536, 'C': .0223367596, 'M': .0202656783,
@@ -64,6 +84,5 @@ if __name__ == '__main__':
                  'B': .0125888074, 'V': 0.0079611644, 'K': 0.0056096272, 'X': 0.0014092016, 'J': 0.0009752181,
                  'Q': 0.0008367550, 'Z': 0.0005128469}
 
-    probable_shift_value = get_caesar_shift(message, freq_dist)
-    print(probable_shift_value)
-    print("hello")
+    keyword = get_vigenere_keyword(message, keyword_size, freq_dist)
+    print(keyword)
